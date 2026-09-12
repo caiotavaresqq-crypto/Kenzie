@@ -461,7 +461,7 @@ def minimize_all_windows():
     except Exception as error:
 
         return f"Não consegui minimizar as janelas: {error}"
-   # ============================================================
+# ============================================================
 # VISÃO DA TELA
 # ============================================================
 

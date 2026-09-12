@@ -4,13 +4,17 @@ import subprocess
 import webbrowser
 from datetime import datetime
 from urllib.parse import quote
+from PySide6.QtWidgets import QApplication
+print("INTERFACE IMPORTADA")
+from interface import KenzieInterface
+import sys
+import threading
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 import tools
 import pyttsx3
-
 
 # ============================================================
 # KENZIE v0.3
@@ -53,6 +57,13 @@ MAX_MESSAGES = 20
 
 conversation = []
 KENZIE_STATE = "STANDBY"
+<<<<<<< HEAD
+=======
+INTERFACE = None
+def atualizar_interface():
+    if INTERFACE is not None:
+        INTERFACE.nucleo_central.mudar_estado(KENZIE_STATE.lower())
+>>>>>>> 7ac8f3c (Kenzie v0.6 - interface gráfica)
 
 
 # ============================================================
@@ -197,19 +208,22 @@ def detectar_ativacao(message):
     text = message.strip().lower()
 
     if (
-        "kenzie, está acordada" in text
-        or "kenzie, esta acordada" in text
-    ):
+    "kenzie, está acordada" in text
+    or "kenzie, esta acordada" in text
+):
         KENZIE_STATE = "LEVE"
-        return "LEVE"
+    atualizar_interface()
+    return "LEVE"
 
     if "kenzie, vamos trabalhar" in text:
         KENZIE_STATE = "COMPLETO"
-        return "COMPLETO"
+    atualizar_interface()
+    return "COMPLETO"
 
     if "kenzie, pode dormir" in text:
         KENZIE_STATE = "STANDBY"
-        return "STANDBY"
+    atualizar_interface()
+    return "STANDBY"
 
     return None
 # ============================================================
@@ -1369,8 +1383,30 @@ def show_banner():
 # ============================================================
 # MAIN
 # ============================================================
-
 def main():
+    print("1 - Entrou na main")
+    app = QApplication(sys.argv)
+
+    print("2 - QApplication criada")
+
+    janela = KenzieInterface()
+
+    print("3 - KenzieInterface criada")
+
+    janela.show()
+
+    print("4 - janela.show() executado")
+
+    threading.Thread(target=terminal_loop, daemon=True).start()
+
+    print("5 - terminal_loop iniciado")
+
+    app.exec()
+
+    print("6 - app encerrado")
+
+
+def terminal_loop():
     show_banner()
 
     while True:
@@ -1454,5 +1490,7 @@ def main():
 # ============================================================
 
 if __name__ == "__main__":
+
+    print("CHEGUEI NO FINAL DO ARQUIVO")
 
     main()
