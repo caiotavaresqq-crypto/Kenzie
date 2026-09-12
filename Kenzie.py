@@ -63,6 +63,9 @@ INTERFACE = None
 def atualizar_interface():
     if INTERFACE is not None:
         INTERFACE.nucleo_central.mudar_estado(KENZIE_STATE.lower())
+def enviar_para_interface(mensagem):
+    if INTERFACE is not None:
+        INTERFACE.adicionar_mensagem(mensagem)
 
 
 # ============================================================
