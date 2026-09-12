@@ -57,13 +57,12 @@ MAX_MESSAGES = 20
 
 conversation = []
 KENZIE_STATE = "STANDBY"
-<<<<<<< HEAD
-=======
+
 INTERFACE = None
+
 def atualizar_interface():
     if INTERFACE is not None:
         INTERFACE.nucleo_central.mudar_estado(KENZIE_STATE.lower())
->>>>>>> 7ac8f3c (Kenzie v0.6 - interface gráfica)
 
 
 # ============================================================
@@ -208,22 +207,22 @@ def detectar_ativacao(message):
     text = message.strip().lower()
 
     if (
-    "kenzie, está acordada" in text
-    or "kenzie, esta acordada" in text
-):
+        "kenzie, está acordada" in text
+        or "kenzie, esta acordada" in text
+    ):
         KENZIE_STATE = "LEVE"
-    atualizar_interface()
-    return "LEVE"
+        atualizar_interface()
+        return "LEVE"
 
     if "kenzie, vamos trabalhar" in text:
         KENZIE_STATE = "COMPLETO"
-    atualizar_interface()
-    return "COMPLETO"
+        atualizar_interface()
+        return "COMPLETO"
 
     if "kenzie, pode dormir" in text:
         KENZIE_STATE = "STANDBY"
-    atualizar_interface()
-    return "STANDBY"
+        atualizar_interface()
+        return "STANDBY"
 
     return None
 # ============================================================
@@ -1390,6 +1389,8 @@ def main():
     print("2 - QApplication criada")
 
     janela = KenzieInterface()
+    global INTERFACE
+    INTERFACE = janela
 
     print("3 - KenzieInterface criada")
 
