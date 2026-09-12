@@ -1250,7 +1250,49 @@ def ask_ai(message):
             "Não consegui acessar a IA agora. "
             "Posso continuar usando meus recursos offline."
         )
+def comando_permitido(message):
+    if KENZIE_STATE == "STANDBY":
+        return False
+
+    if KENZIE_STATE == "LEVE":
+        comandos_leves = [
+            "calculadora",
+            "paint",
+            "bloco de notas",
+            "notepad",
+            "explorador",
+            "google",
+            "youtube",
+            "github",
+            "pesquise",
+            "pesquisa",
+            "procure",
+            "buscar",
+            "busque",
+            "que horas",
+            "qual a hora",
+            "qual a data",
+            "que dia é hoje",
+            "volume"
+        ]
+
+        text = message.lower()
+
+        return any(comando in text for comando in comandos_leves)
+
+    return True
+
 def process_command(message):
+
+    if not comando_permitido(message):
+
+        if KENZIE_STATE == "STANDBY":
+            return "Estou em espera. Diga uma frase de ativação para me chamar."
+
+        if KENZIE_STATE == "LEVE":
+            return "Esse comando está disponível apenas no modo COMPLETO."
+
+        return "Comando não permitido."
 
     # MEMÓRIA
     memory_result = process_memory_command(message)
