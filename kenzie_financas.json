@@ -1,0 +1,24 @@
+{
+    "rendas": [
+        200.0
+    ],
+    "despesas_fixas": [
+        30.0,
+        100.0
+    ],
+    "despesas_variaveis": [
+        20.0
+    ],
+    "gastos_lazer": [
+        20.0
+    ],
+    "reserva_emergencia": [
+        30.0
+    ],
+    "metas": [
+        {
+            "nome": "Apartamento",
+            "valor": 1500.0
+        }
+    ]
+}
