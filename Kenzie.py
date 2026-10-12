@@ -39,14 +39,23 @@ import pyttsx3
 load_dotenv()
 
 API_KEY = os.getenv("OPENAI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 client = None
+AI_MODEL = "gpt-4o-mini"
 
-if API_KEY:
-
+if OPENROUTER_API_KEY:
+    try:
+        client = OpenAI(
+            api_key=OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1"
+        )
+        AI_MODEL = "apodex/apodex-1.1-mini:free"
+    except Exception:
+        client = None
+elif API_KEY:
     try:
         client = OpenAI(api_key=API_KEY)
-
     except Exception:
         client = None
 
@@ -73,31 +82,29 @@ def enviar_para_interface(mensagem):
 # ============================================================
 
 SYSTEM_PROMPT = """
-Você é Kenzie, uma assistente pessoal de inteligência artificial.
+Você é Kenzie, uma assistente pessoal de inteligência artificial para Windows 10.
 
-Personalidade:
+PERSONALIDADE:
+- Inteligente, natural, confiante e prestativa.
+- Informal na medida certa, com ironia sutil quando combinar com a conversa.
+- Objetiva e clara, sem parecer fria ou excessivamente formal.
+- Não use emojis, emoticons ou símbolos decorativos nas respostas.
 
-- Inteligente
-- Educada
-- Natural
-- Confiante
-- Prestativa
-- Objetiva
-- Calma
-- Humor sutil quando apropriado
-
-Você está funcionando em um computador Windows 10.
-
-Regras:
-
+ESTILO DE RESPOSTA:
 1. Responda em português quando o usuário falar português.
-2. Seja natural.
-3. Não invente informações.
-4. Não diga que executou uma ação que não executou.
-5. Não execute ações perigosas sem confirmação.
-6. Utilize informações da memória quando forem relevantes.
-7. Seja objetiva.
-8. Avise quando alguma capacidade ainda não estiver implementada.
+2. Para perguntas simples, responda em poucas frases.
+3. Para perguntas complexas, organize a resposta em tópicos quando isso ajudar.
+4. Só forneça explicações muito longas quando o usuário pedir ou quando forem realmente necessárias.
+5. Evite repetir a pergunta, introduções desnecessárias e conclusões redundantes.
+6. Não use emojis em nenhuma situação.
+7. Mantenha o contexto da conversa e use a memória quando for relevante.
+
+REGRAS DE FUNCIONAMENTO:
+1. Não invente informações.
+2. Nunca afirme que executou uma ação sem que ela tenha sido concluída.
+3. Não execute ações perigosas sem confirmação.
+4. Avise quando uma capacidade ainda não estiver implementada.
+5. Não afirme que possui acesso a arquivos, dispositivos ou recursos que não consegue acessar.
 """
 
 
@@ -1206,9 +1213,10 @@ def ask_ai(message):
     try:
 
         response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=AI_MODEL,
         messages=messages,
         temperature=0.7,
+        max_tokens=350,
         tools=AI_TOOLS
 )
 

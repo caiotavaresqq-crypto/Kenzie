@@ -1,2 +1,16 @@
 .env 
 __pycache__/ 
+.env
+.env.*
+!.env.example
+
+Kenzie.py.bak
+Kenzie_v_atual.py
+interface_v_atual.py
+tools_v_atual.py
+integrar_openrouter.py
+
+kenzie_projetos.json
+kenzie_treinos.json
+__pycache__/
+*.pyc
