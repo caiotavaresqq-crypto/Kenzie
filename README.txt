@@ -38,9 +38,6 @@ SEGURANCA
 - O .gitignore já exclui .env e a memória local.
 - O pacote não contém sua chave de API.
 
-OLLAMA
-A arquitetura atual mantém o provedor de IA isolado na configuração. O Ollama ainda não está ativado neste pacote; será conectado como provedor local em uma etapa separada, depois de instalado e testado neste computador.
-
 TESTE RAPIDO DE MEMORIA
 Depois de iniciar a Kenzie, envie estas mensagens:
 1. Meu nome é Caio e estou desenvolvendo um projeto chamado Kenzie.
@@ -106,60 +103,44 @@ KENZIE_VOICE_PROFILE=TARS
 
 Observação: os perfis são ajustes de ritmo e variação da síntese, não imitações exatas das vozes dos personagens. A semelhança final depende também do modelo de voz escolhido.
 
-OLLAMA LOCAL — INTEGRACAO v1
-----------------------------
-O Ollama agora é o provedor principal da Kenzie, usando a API local compatível
-com OpenAI em http://127.0.0.1:11434/v1.
-
-MODELOS CONFIGURADOS
-- Qwen3 1.7B (qwen3:1.7b): conversação geral.
-- Qwen2.5-Coder 1.5B (qwen2.5-coder:1.5b): programação e depuração.
-- Llama 3.2 1B (llama3.2:1b): modelo reserva local.
-
-ROTEAMENTO E FALLBACK
-- A Kenzie escolhe o Qwen Coder quando identifica uma solicitação de programação.
-- Para conversa e tarefas gerais, usa o Qwen3.
-- Se o modelo selecionado falhar, tenta o outro modelo principal e depois o Llama.
-- Se todos os modelos locais falharem, tenta OpenRouter; se não houver OpenRouter,
-  tenta OpenAI quando configurada.
-- Se nenhum provedor estiver disponível, mantém as respostas offline já existentes.
-- Os modelos são chamados sob demanda; a Kenzie não mantém os três carregados
-  simultaneamente por conta própria.
-
-REQUISITOS E TESTE
-1. Instale e inicie o Ollama para Windows.
-2. Confirme no CMD: ollama list
-3. Confirme que aparecem qwen3:1.7b, qwen2.5-coder:1.5b e llama3.2:1b.
-4. Opcionalmente teste a API local: ollama run qwen3:1.7b
-5. Inicie a Kenzie com INICIAR_KENZIE.bat. O terminal informa qual modelo foi
-   escolhido para cada solicitação e quando ocorre fallback.
+PROVEDOR DE IA — OPENROUTER
+--------------------------
+- Qwen2.5-Coder e a integração com Ollama foram removidos deste pacote.
+- Conversas gerais, programação e depuração utilizam o provedor online configurado.
+- OpenRouter é prioritária; OpenAI é usada como alternativa quando configurada.
+- Configure OPENROUTER_API_KEY no arquivo .env.
+- Para fixar um modelo, defina OPENROUTER_MODEL com um ID válido da OpenRouter.
+- Se nenhum provedor online estiver disponível, a Kenzie usa as respostas offline existentes.
 
 CONFIGURAÇÃO
-As opções podem ser alteradas no .env:
-- OLLAMA_ENABLED=true
-- OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
-- OLLAMA_GENERAL_MODEL=qwen3:1.7b
-- OLLAMA_CODER_MODEL=qwen2.5-coder:1.5b
-- OLLAMA_FALLBACK_MODEL=llama3.2:1b
-- OLLAMA_TIMEOUT=120
-A chave OPENROUTER_API_KEY é opcional e serve apenas como fallback online.
-Não é necessária chave de API para usar o Ollama local.
-
-ATUALIZAR SEM PERDER DADOS
-Extraia esta versão em uma pasta nova. Copie o .env e kenzie_memory.db da pasta
-anterior para a nova. Não substitua seu .env pelo .env.example e nunca compartilhe
-sua chave de API.
-
-VALIDAÇÃO DESTA ENTREGA
-Os arquivos Python foram compilados com py_compile e o arquivo ZIP foi validado.
-A chamada real aos modelos depende do Ollama estar instalado e em execução no
-computador Windows; essa reprodução não foi executada neste ambiente.
+- OPENROUTER_API_KEY= sua chave da OpenRouter
+- OPENROUTER_MODEL=openrouter/free (opcional)
+- OPENAI_API_KEY= (opcional, como alternativa)
+- OPENAI_MODEL=gpt-4o-mini (opcional)
 
 
-CONFIGURACAO DE IA — OPENROUTER + CODER LOCAL
-- Conversas gerais são enviadas diretamente à OpenRouter.
-- Pedidos identificados como programação tentam primeiro qwen2.5-coder:1.5b no Ollama.
-- Se o modelo local falhar, a solicitação segue para a OpenRouter.
-- Qwen3 e Llama não são mais usados nem chamados pelo código.
-- Configure OPENROUTER_API_KEY no arquivo .env; mantenha OLLAMA_ENABLED=true
-  para usar o modelo local de programação.
+KENZIE ACTION ENGINE 0.1 (NOVO)
+---------------------------------
+Arquivos adicionados:
+- action_engine.py: planner-schema, validação de planos e executor sequencial.
+- action_engine_models.py: modelos de ferramenta, etapa e plano.
+- action_engine_registry.py: registro dinâmico de ferramentas.
+- action_engine_tools.py: ferramentas iniciais e allowlists.
+
+Integração:
+- Kenzie.py usa o Action Engine nas chamadas de ferramentas da IA.
+- O LLM pode propor um plano multi-etapas ou chamar uma ferramenta diretamente.
+- A execução é limitada às ferramentas registradas e permissões locais do engine.
+- Feedback da execução é enviado à IA para uma resposta natural; a Kenzie não deve inventar sucesso.
+
+Ferramentas 0.1:
+- open_app: Calculadora, Bloco de Notas, Paint, Explorador, Gerenciador de Tarefas e VS Code (se instalado).
+- open_url: valida HTTP/HTTPS e abre pelo navegador padrão.
+- search_web: abre uma pesquisa Google no navegador; não simula nem extrai resultados.
+- search_files: pesquisa por nome nas pastas Documentos, Desktop e Downloads; até 25 resultados.
+
+Limitações iniciais:
+- search_web apenas abre a página de pesquisa; leitura automatizada de resultados ainda não implementada.
+- A busca por arquivos é limitada às pastas configuradas e a nomes de arquivos, não ao conteúdo.
+- O replanejamento automático após falhas ainda não está implementado na 0.1.
+- O conjunto de aplicativos é uma allowlist inicial; novos apps precisam ser autorizados no código.

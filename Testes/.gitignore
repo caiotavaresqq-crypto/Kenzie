@@ -1,0 +1,13 @@
+.env
+kenzie_memory.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+kenzie_memory.db
+kenzie_memory.db-shm
+kenzie_memory.db-wal
+
+# Modelos neurais de voz (baixados pelo instalador)
+voices/

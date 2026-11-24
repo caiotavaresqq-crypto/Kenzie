@@ -18,6 +18,7 @@ import tools
 from memory_store import MemoryStore
 from personality import PERSONALITY_PROMPT
 from voice import VoiceManager
+from action_engine import ACTION_ENGINE
 
 # ============================================================
 # KENZIE v0.3
@@ -47,24 +48,9 @@ load_dotenv(dotenv_path=ENV_FILE, override=False)
 API_KEY = os.getenv("OPENAI_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# OpenRouter atende conversas gerais; Ollama fica reservado para programação.
-OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "true").strip().lower() in ("1", "true", "yes", "sim")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1")
-OLLAMA_CODER_MODEL = os.getenv("OLLAMA_CODER_MODEL", "qwen2.5-coder:1.5b")
-
-ollama_client = None
+# Provedores online configurados (OpenRouter prioritário; OpenAI como alternativa).
 openrouter_client = None
 openai_client = None
-
-if OLLAMA_ENABLED:
-    try:
-        ollama_client = OpenAI(
-            api_key="ollama-local",
-            base_url=OLLAMA_BASE_URL,
-            timeout=float(os.getenv("OLLAMA_TIMEOUT", "120"))
-        )
-    except Exception as error:
-        print(f"Não foi possível inicializar o cliente Ollama: {error}")
 
 if OPENROUTER_API_KEY:
     try:
@@ -87,9 +73,9 @@ if API_KEY:
         print(f"Não foi possível inicializar a OpenAI: {error}")
 
 # Mantém compatibilidade com as verificações antigas do projeto.
-client = openrouter_client or openai_client or ollama_client
-AI_PROVIDER = "openrouter" if openrouter_client else ("openai" if openai_client else ("ollama" if ollama_client else "offline"))
-AI_MODEL = (os.getenv("OPENROUTER_MODEL", "openrouter/free") if openrouter_client else (os.getenv("OPENAI_MODEL", "gpt-4o-mini") if openai_client else OLLAMA_CODER_MODEL))
+client = openrouter_client or openai_client
+AI_PROVIDER = "openrouter" if openrouter_client else ("openai" if openai_client else "offline")
+AI_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free") if openrouter_client else os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
 MEMORY_FILE = os.path.join(BASE_DIR, "kenzie_memory.json")
@@ -144,6 +130,10 @@ REGRAS DE FUNCIONAMENTO:
 3. Avise quando uma capacidade ainda não estiver implementada.
 4. Não afirme que possui acesso a arquivos, dispositivos ou recursos que não consegue acessar.
 5. Use as ferramentas disponíveis quando o pedido exigir uma ação local e a ferramenta corresponder ao pedido.
+6. Use create_action_plan para pedidos que exijam ações locais em uma ou mais etapas; planeje com ferramentas registradas e dependências explícitas.
+7. Para conversa normal, perguntas e explicações, responda sem executar ferramentas.
+8. Nunca gere ou execute código arbitrário para controlar o computador.
+9. Relate falhas e resultados parciais com honestidade.
 """
 
 
@@ -1301,19 +1291,6 @@ def offline_response(message):
 # IA
 # ============================================================
 
-def tarefa_de_programacao(message):
-    """Detecta pedidos de programação para encaminhá-los ao modelo local especializado."""
-    texto = str(message).lower()
-    termos_codigo = (
-        "código", "codigo", "python", "java", "javascript", "html", "css",
-        "sql", "debug", "depurar", "traceback", "exception", "função", "funcao",
-        "classe", "script", "programação", "programacao", "programar", "refatorar",
-        "api", "biblioteca", "pip install", "terminal", "cmd", "erro no código",
-        "corrija esse código", "corrigir código", "implemente", "compile"
-    )
-    return any(t in texto for t in termos_codigo)
-
-
 def montar_mensagens_ia(message):
     add_user_message(message)
     memory_text = (
@@ -1333,11 +1310,24 @@ def extrair_resposta(response):
     answer_message = choice.message
     tool_calls = answer_message.tool_calls or []
     if tool_calls:
-        tool_call = tool_calls[0]
-        tool_name = tool_call.function.name
-        result = use_tool(tool_name)
-        add_assistant_message(str(result))
-        return str(result), "tool"
+        feedbacks = []
+        for call in tool_calls:
+            tool_name = call.function.name
+            try:
+                arguments = json.loads(call.function.arguments or "{}")
+                if tool_name == "create_action_plan":
+                    result = ACTION_ENGINE.execute_payload(arguments)
+                else:
+                    result = ACTION_ENGINE.execute_payload({
+                        "goal": f"Executar ferramenta {tool_name}",
+                        "steps": [{"tool_id": tool_name, "parameters": arguments}]
+                    })
+                feedbacks.append(ACTION_ENGINE.format_feedback(result))
+            except Exception as error:
+                feedbacks.append(f"Plano recusado ou inválido: {error}")
+        feedback = "\n\n".join(feedbacks)
+        add_assistant_message(feedback)
+        return feedback, "action"
     answer = answer_message.content
     if isinstance(answer, list):
         answer = "".join(
@@ -1350,33 +1340,11 @@ def extrair_resposta(response):
     add_assistant_message(answer)
     return answer, None
 
-
 def ask_ai(message):
     messages = montar_mensagens_ia(message)
     erros = []
-    eh_codigo = tarefa_de_programacao(message)
 
-    # Programação: tenta somente o Qwen Coder local. Não tenta modelos removidos.
-    if eh_codigo and ollama_client is not None:
-        try:
-            print(f"[IA] Ollama local: {OLLAMA_CODER_MODEL} (programação)")
-            response = ollama_client.chat.completions.create(
-                model=OLLAMA_CODER_MODEL,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=900,
-                tools=AI_TOOLS
-            )
-            answer, detail = extrair_resposta(response)
-            if answer:
-                print(f"[IA] Resposta concluída com Ollama/{OLLAMA_CODER_MODEL}")
-                return answer
-            erros.append(f"Ollama/{OLLAMA_CODER_MODEL}: resposta vazia ({detail})")
-        except Exception as error:
-            erros.append(f"Ollama/{OLLAMA_CODER_MODEL}: {error}")
-            print(f"[IA] Falha no modelo local de programação: {error}")
-
-    # Conversa geral vai direto para a OpenRouter, sem esperar o Ollama.
+    # Todas as solicitações (incluindo programação) usam o provedor online configurado.
     online_client = openrouter_client or openai_client
     online_model = (
         os.getenv("OPENROUTER_MODEL", "openrouter/free") if openrouter_client
@@ -1385,15 +1353,31 @@ def ask_ai(message):
     online_name = "openrouter" if openrouter_client else "openai"
     if online_client is not None:
         try:
-            print(f"[IA] {online_name}: {online_model}" + (" (fallback)" if eh_codigo else " (conversa geral)"))
+            print(f"[IA] {online_name}: {online_model}")
             response = online_client.chat.completions.create(
                 model=online_model,
                 messages=messages,
                 temperature=0.7,
                 max_tokens=900,
-                tools=AI_TOOLS
+                tools=ACTION_ENGINE.function_schema(),
+                tool_choice="auto"
             )
             answer, detail = extrair_resposta(response)
+            if answer and detail == "action":
+                # Segunda chamada: transforma o resultado real das ferramentas em uma resposta natural.
+                followup_messages = messages + [{"role": "assistant", "content": "Resultado real da execução das ferramentas:\n" + answer}, {"role": "user", "content": "Informe o resultado de forma breve e natural. Seja honesta sobre falhas, etapas puladas ou conclusão parcial. Não diga que algo foi concluído se o resultado não confirmar."}]
+                final_response = online_client.chat.completions.create(
+                    model=online_model, messages=followup_messages, temperature=0.5, max_tokens=500
+                )
+                final_text = final_response.choices[0].message.content if final_response.choices else None
+                if isinstance(final_text, list):
+                    final_text = "".join(block.get("text", "") if isinstance(block, dict) else str(block) for block in final_text)
+                if final_text and str(final_text).strip():
+                    final_text = str(final_text).strip()
+                    add_assistant_message(final_text)
+                    print(f"[IA] Plano executado e resposta sintetizada ({online_name}/{online_model})")
+                    return final_text
+                return answer
             if answer:
                 print(f"[IA] Resposta concluída com {online_name}/{online_model}")
                 return answer
@@ -1402,25 +1386,8 @@ def ask_ai(message):
             erros.append(f"{online_name}: {error}")
             print(f"[IA] Falha em {online_name}: {error}")
 
-    # Se a OpenRouter não estiver configurada, o modelo local pode atender como reserva.
-    if not eh_codigo and ollama_client is not None:
-        try:
-            print(f"[IA] Reserva local: {OLLAMA_CODER_MODEL}")
-            response = ollama_client.chat.completions.create(
-                model=OLLAMA_CODER_MODEL,
-                messages=messages,
-                temperature=0.5,
-                max_tokens=500
-            )
-            answer, detail = extrair_resposta(response)
-            if answer:
-                return answer
-            erros.append(f"Ollama reserva: resposta vazia ({detail})")
-        except Exception as error:
-            erros.append(f"Ollama reserva: {error}")
-
     if erros:
-        print("[IA] Todos os provedores falharam: " + " | ".join(erros))
+        print("[IA] Provedor online falhou: " + " | ".join(erros))
     return offline_response(message)
 
 def comando_permitido(message):
@@ -1563,10 +1530,6 @@ def show_banner():
 
     print("Memória: ATIVA")
 
-    if ollama_client:
-        print(f"Modelo local para programação: {OLLAMA_CODER_MODEL}")
-    else:
-        print("Modelo local de programação: Ollama não inicializado")
     if openrouter_client:
         print("IA principal para conversas: OpenRouter configurada")
     elif openai_client:

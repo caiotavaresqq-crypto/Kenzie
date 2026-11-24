@@ -1,0 +1,4 @@
+python-dotenv>=1.0.0
+openai>=1.50.0
+pycaw; platform_system == "Windows"
+PySide6>=6.6.0

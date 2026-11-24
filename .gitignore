@@ -1,13 +1,34 @@
+
+# Credenciais e segredos
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Memória e dados pessoais da Kenzie
 kenzie_memory.json
+kenzie_memory.db*
+kenzie_financas.json
+kenzie_projetos.json
+kenzie_treinos.json
+
+# Arquivos temporários Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+env/
 
-kenzie_memory.db
-kenzie_memory.db-shm
-kenzie_memory.db-wal
-
-# Modelos neurais de voz (baixados pelo instalador)
+# Modelos de voz baixados
 voices/
+
+# Arquivos temporários
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Backups e arquivos locais
+*.bak
